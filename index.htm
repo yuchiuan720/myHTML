@@ -18,29 +18,13 @@
             border: "1";
         }
         .tooHigh {
-            border: 20px solid #ffea2d;
+            border: 0.5rem solid #ffea2d;
+            /* outline: 0.5rem solid khaki; */
         }
         .tooLow {
-            border: 20px solid #f82dff;;
+            border: 0.5rem solid #f82dff;;
+            /* outline: 0.5rem solid pink; */
         }
-        /* .Cell_R_R {
-            background-color: red;
-        }
-        .Cell_LR {
-            background-color: lightpink;
-        }
-        .Cell_R_G {
-            background-color: green;
-        } 
-        .Cell_LG {
-            background-color:  lightgreen;
-        }
-        .Cell_R_B {
-            background-color:  blue;
-        }
-        .Cell_LB {
-            background-color:  lightblue;
-        } */
     </style>
 </head>
 <body>
@@ -96,49 +80,6 @@
             fileNameWithoutExtension = fileNameWithExtension.split('.').slice(0, -1).join('.');
         });
 
-        // function exportToExcel(){
-        //     const table = document.getElementById('rgbTable')
-        //     const wb = XLSX.utils.table_to_book(table);
-        //     console.log("File Name:",fileNameWithoutExtension);
-        //     XLSX.writeFile(wb,  fileNameWithoutExtension + '.xlsx');
-        // }
-        
-        // function exportToExcel() {
-        //     const table = document.getElementById('rgbTable');
-
-        //     // 创建一个工作簿
-        //     const wb = XLSX.utils.book_new();
-            
-        //     // 将表格转换为工作表
-        //     const ws = XLSX.utils.table_to_sheet(table);
-            
-        //     // 添加样式信息到工作表
-        //     ws['!rows'] = [];
-        //     for (let i = 0; i < table.rows.length; i++) {
-        //         ws['!rows'][i] = { hidden: false, hpx: 25 };
-        //     }
-        //     for (let R = 0; R < table.rows.length; ++R) {
-        //         for (let C = 0; C < table.rows[R].cells.length; ++C) {
-        //             const cellRef = XLSX.utils.encode_cell({ r: R, c: C });
-        //             const cell = ws[cellRef];
-        //             if (cell && table.rows[R].cells[C].style.backgroundColor) {
-        //                 cell.s = {
-        //                     fill: {
-        //                         fgColor: { rgb: table.rows[R].cells[C].style.backgroundColor },
-        //                     },
-        //                 };
-        //             }
-        //         }
-        //     }
-
-        //     // 将工作表添加到工作簿
-        //     XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
-            
-        //     // 保存工作簿到文件
-        //     // XLSX.writeFile(wb, 'file.xlsx');
-        //     XLSX.writeFile(wb,  fileNameWithoutExtension + '.xlsx');
-        // }
-
         function exportToExcel() {
             const table = document.getElementById('rgbTable');
 
@@ -159,10 +100,42 @@
                     const cell = ws[cellRef];
                     if (cell && table.rows[R].cells[C].style.backgroundColor) {
                         const rgbaColor = table.rows[R].cells[C].style.backgroundColor;
+                        
                         const bgColor = "rgb(255, 255, 255)"; // 作为示例提供背景颜色
                         const rgbColor = rgbaToRgb(rgbaColor, bgColor);
-                        const hexColor = rgbToHex(rgbColor);                   
-                        cell.s = { fill: { fgColor: { rgb: hexColor } } };
+                        const hexColor = rgbToHex(rgbColor);
+                        const class_name = table.rows[R].cells[C].className;
+                        const match = class_name.match(/tooHigh|tooLow/);
+                        if (class_name.match(/tooHigh/)) {
+                            cell.s = { 
+                                fill: { 
+                                    fgColor: { rgb: "ffea2d" } ,
+                                    border: { 
+                                        top: {
+                                            style: 'thin',
+                                            color: { rgb: "ffea2d" }
+                                        }
+                                    }
+                                } 
+                            };
+                            
+                        } else if (class_name.match(/tooLow/)){
+                            cell.s = { 
+                                fill: { 
+                                    fgColor: { rgb: "f82dff" } ,
+                                    border: { 
+                                        top: {
+                                            style: 'thin',
+                                            color: { rgb: "f82dff" }
+                                        }
+                                    }
+                                } 
+                            };
+                        } else {
+                            cell.s = { fill: { fgColor: { rgb: hexColor}}}
+                        }
+                        // cell.s = { fill: { fgColor: { rgb: hexColor}}}
+                        // console.log("cell.s:" + JSON.stringify(cell.s));
                     }
                 }
             }
@@ -171,7 +144,6 @@
             XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
             
             // 保存工作簿到文件
-            // XLSX.writeFile(wb, 'file.xlsx');
             XLSX.writeFile(wb,  fileNameWithoutExtension + '.xlsx');
         }
 
@@ -224,42 +196,6 @@
             // return '#' + toHex(r) + toHex(g) + toHex(b);
         }
 
-        // function rgbaToHex(rgbaColor, bgColor) {
-        //     // 解析 RGBA 值
-        //     const rgbaMatch = rgbaColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+),\s*(\d*(?:\.\d+)?)\)/);
-        //     if (!rgbaMatch) {
-        //         throw new Error('Invalid RGBA color format');
-        //     }
-
-        //     const alpha = parseFloat(rgbaMatch[4]); // 获取透明度
-        //     const red = parseInt(rgbaMatch[1]);
-        //     const green = parseInt(rgbaMatch[2]);
-        //     const blue = parseInt(rgbaMatch[3]);
-
-        //     // 解析背景颜色的 RGB 值
-        //     const bgMatch = bgColor.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
-        //     if (!bgMatch) {
-        //         throw new Error('Invalid background color format');
-        //     }
-
-        //     const bgRed = parseInt(bgMatch[1]);
-        //     const bgGreen = parseInt(bgMatch[2]);
-        //     const bgBlue = parseInt(bgMatch[3]);
-
-        //     // 使用公式计算 RGB 值
-        //     const targetRed = Math.round((1 - alpha) * bgRed + alpha * red);
-        //     const targetGreen = Math.round((1 - alpha) * bgGreen + alpha * green);
-        //     const targetBlue = Math.round((1 - alpha) * bgBlue + alpha * blue);
-
-        //     // 将 RGB 值转换为十六进制
-        //     const toHex = (c) => {
-        //         const hex = parseInt(c).toString(16);
-        //         return hex.length === 1 ? '0' + hex : hex;
-        //     };
-
-        //     return toHex(targetRed) + toHex(targetGreen) + toHex(targetBlue);
-        // }
-
         function displayStationName(contents) {
             var lines = contents.split('\n');
             var header = lines[0];
@@ -306,6 +242,7 @@
             }
             output.appendChild(table);
         }
+
         function luxMap(lux, in_min, in_max, out_min, out_max){
             return (lux - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
         }
@@ -449,48 +386,39 @@
                 headerCHECK_ALL_LED_OFF.textContent = 'CHECK_ALL_LED_OFF';
                 headerCHECK_ALL_LED_OFF.setAttribute('id', 'headerCHECK_ALL_LED_OFF');
             }
-            
-
             // 获取dataTable的行数
             var rowCount = originalTable.rows.length;
-            console.log("rowCount:", rowCount);
-
-            // 獲取 測試範圍
-            // var CHECK_LED_R_ON_MAX = originalTable.rows[2].cell[8].textContent;
-            // for (var i = 0; i < originalTable.rows[2].cells.length; i++) {
-            //     var cell = originalTable.rows[2].cells[i];
-            //     console.log("@@@:", "i:"+i+" Content:" + cell.textContent);
-            // }
+            // console.log("rowCount:", rowCount);
 
             // 捕捉 CHECK_LED_R_ON_MAX
             var i = Array.from(originalTable.rows[0].cells).findIndex(cell => cell.textContent.trim() === "CHECK_LED_R_ON");
             var CHECK_LED_R_ON_MAX = originalTable.rows[1].cells[i].textContent;
-            console.log("CHECK_LED_R_ON_MAX:",CHECK_LED_R_ON_MAX);
+            // console.log("CHECK_LED_R_ON_MAX:",CHECK_LED_R_ON_MAX);
 
             // 捕捉 CHECK_LED_R_ON_MIN
             var i = Array.from(originalTable.rows[0].cells).findIndex(cell => cell.textContent.trim() === "CHECK_LED_R_ON");
             var CHECK_LED_R_ON_MIN = originalTable.rows[2].cells[i].textContent;
-            console.log("CHECK_LED_R_ON_MIN:",CHECK_LED_R_ON_MIN);
+            // console.log("CHECK_LED_R_ON_MIN:",CHECK_LED_R_ON_MIN);
 
             // 捕捉 CHECK_LED_G_ON_MAX
             var i = Array.from(originalTable.rows[0].cells).findIndex(cell => cell.textContent.trim() === "CHECK_LED_G_ON");
             var CHECK_LED_G_ON_MAX = originalTable.rows[1].cells[i].textContent;
-            console.log("CHECK_LED_G_ON_MAX:",CHECK_LED_G_ON_MAX);
+            // console.log("CHECK_LED_G_ON_MAX:",CHECK_LED_G_ON_MAX);
 
             // 捕捉 CHECK_LED_G_ON_MIN
             var i = Array.from(originalTable.rows[0].cells).findIndex(cell => cell.textContent.trim() === "CHECK_LED_G_ON");
             var CHECK_LED_G_ON_MIN = originalTable.rows[2].cells[i].textContent;
-            console.log("CHECK_LED_G_ON_MIN:",CHECK_LED_G_ON_MIN);
+            // console.log("CHECK_LED_G_ON_MIN:",CHECK_LED_G_ON_MIN);
             
             // 捕捉 CHECK_LED_B_ON_MAX
             var i = Array.from(originalTable.rows[0].cells).findIndex(cell => cell.textContent.trim() === "CHECK_LED_B_ON");
             var CHECK_LED_B_ON_MAX = originalTable.rows[1].cells[i].textContent;
-            console.log("CHECK_LED_B_ON_MAX:",CHECK_LED_B_ON_MAX);
+            // console.log("CHECK_LED_B_ON_MAX:",CHECK_LED_B_ON_MAX);
 
             // 捕捉 CHECK_LED_B_ON_MIN
             var i = Array.from(originalTable.rows[0].cells).findIndex(cell => cell.textContent.trim() === "CHECK_LED_B_ON");
             var CHECK_LED_B_ON_MIN = originalTable.rows[2].cells[i].textContent;
-            console.log("CHECK_LED_B_ON_MIN:",CHECK_LED_B_ON_MIN);
+            // console.log("CHECK_LED_B_ON_MIN:",CHECK_LED_B_ON_MIN);
             
             // 创建rgbTable表头 Upper Limit
             var upperLimitRow = rgbTable.insertRow();
@@ -750,9 +678,7 @@
                     // 查找对应列的索引
                     var orgcolumnIndex = Array.from(originalTable.rows[0].cells).findIndex(cell => cell.textContent.trim() === headerName);
                     var originalCell = originalRow.cells[orgcolumnIndex];
-                    // console.log("orgcolumnIndex:" , orgcolumnIndex);
-                    // console.log("headerName:" , headerName);
-                    // console.log("originalCell:", originalCell ? originalCell.textContent.trim() : '');
+
                     switch (headerName) {
                         case 'SerialNumber':{
                             // var newcolumnIndex = Array.from(rgbTable.rows[0].cells).findIndex(cell => cell.textContent.trim() === "SerialNumber");
@@ -789,15 +715,11 @@
                         case 'CHECK_LED_G_ON':{}
                         case 'CHECK_LED_R_ON':{
                             tempContent = originalCell ? originalCell.textContent.trim() : '';
-                            // console.log("@@@", tempContent);
-                            // console.log("@@@ = ", tempContent.indexOf("Fail") )
-                            // console.log("@@@ = ", tempContent.indexOf("|") )
+
                             if (tempContent.indexOf("|") > 0 ) {
                                 var tmpSplit = tempContent.split(" | ");
                                 var leftData = tmpSplit[0].split(" ");
                                 var rightData = tmpSplit[1].split(" ");
-                                // console.log("@@@", leftData);
-                                // console.log("@@@", rightData);
 
                                 var newCell_L_R = newRow.insertCell();
                                 newCell_L_R.textContent = leftData[1] ? leftData[1].trim() : ''; // 处理空单元格
@@ -842,7 +764,6 @@
                                 } else {
                                     console.log("@@@ What happened???");
                                 }
-                                // console.log("@@@ color_a", color_a);
                                 newCell_L_LUX.style.backgroundColor = "rgba("+color_r+","+color_g+","+color_b+","+color_a+")";
                                 newCell_L_LUX.className = bolResult;
                                 
@@ -891,12 +812,10 @@
                                 } else {
                                     console.log("@@@ What happened???");
                                 }
-                                // console.log("@@@ color_a", color_a);
                                 newCell_R_LUX.style.backgroundColor = "rgba("+color_r+","+color_g+","+color_b+","+color_a+")";
                                 newCell_R_LUX.className = bolResult;
                                 
                             } else {
-                                // console.log("CCC, ", "Print out it");
                                 var newCell0 = newRow.insertCell();
                                 newCell0.textContent = originalCell ? originalCell.textContent.trim() : ''; // 处理空单元格
                                 var newCell1 = newRow.insertCell();
@@ -931,60 +850,6 @@
             output.appendChild(document.createElement('br'));
             output.appendChild(rgbTable);
         }
-        
-        function dataAnalyze(dataString, newCell){
-            
-        }
-
-        function displayRGB2(contents) {
-            // 获取dataTable表格元素
-            var originalTable = document.getElementById('dataTable');
-            if (!originalTable) {
-                console.error('Table element not found.');
-                return;
-            }
-
-            // 创建rgbTable表格元素
-            var rgbTable = document.createElement('table');
-            rgbTable.setAttribute('id', 'rgbTable');
-
-            // 定义需要提取的列名
-            var headers = ['SerialNumber', 'FixtureID', 'Test Pass/Fail Status', 'StartTime', 'EndTime', 'CHECK_LED_R_ON', 'CHECK_LED_G_ON', 'CHECK_LED_B_ON', 'CHECK_ALL_LED_OFF'];
-
-            // 创建rgbTable表头
-            var headerRow = rgbTable.insertRow();
-            for (var i = 0; i < headers.length; i++) {
-                var headerCell = headerRow.insertCell();
-                headerCell.textContent = headers[i];
-                headerCell.setAttribute('id', headers[i]);
-            }
-
-            // 获取dataTable的行数
-            var rowCount = originalTable.rows.length;
-
-            // 遍历每一行
-            for (var rowIndex = 1; rowIndex < rowCount; rowIndex++) {
-                var originalRow = originalTable.rows[rowIndex];
-                var newRow = rgbTable.insertRow();
-
-                // 遍历需要提取的列
-                for (var headerName of headers) {
-                    // 查找对应列的索引
-                    var columnIndex = Array.from(originalTable.rows[0].cells).findIndex(cell => cell.textContent.trim() === headerName);
-                    var originalCell = originalRow.cells[columnIndex];
-                    var newCell = newRow.insertCell();
-                    newCell.textContent = originalCell ? originalCell.textContent.trim() : ''; // 处理空单元格
-                }
-            }
-
-            // 将rgbTable添加到页面中
-            var output = document.getElementById('output');
-            output.appendChild(document.createElement('br'));
-            output.appendChild(rgbTable);
-        }
-
-
-
     </script>
 </body>
 </html>
