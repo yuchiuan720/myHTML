@@ -1,0 +1,990 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>读取CSV文件</title>
+    <style>
+        table {
+            
+            border-collapse: collapse;
+            width: 100%;
+        }
+        th, td {
+            border: 1px solid #dddddd;
+            text-align: center;
+            padding: 8px;
+        }
+        th {
+            background-color: #f2f2f2;
+            border: "1";
+        }
+        .tooHigh {
+            border: 20px solid #ffea2d;
+        }
+        .tooLow {
+            border: 20px solid #f82dff;;
+        }
+        /* .Cell_R_R {
+            background-color: red;
+        }
+        .Cell_LR {
+            background-color: lightpink;
+        }
+        .Cell_R_G {
+            background-color: green;
+        } 
+        .Cell_LG {
+            background-color:  lightgreen;
+        }
+        .Cell_R_B {
+            background-color:  blue;
+        }
+        .Cell_LB {
+            background-color:  lightblue;
+        } */
+    </style>
+</head>
+<body>
+    這個網頁是專門寫來開啟SE01_CASE_QT1測站Log的工具，他能將CSV Log 內的LED燈測試數據取出，解析出RGB跟亮度。
+    <br>
+    解析後會將RGB跟亮度，轉換成顏色並填入該筆紀錄的表格內。
+    <br>
+    顏色越濃表示LED越亮、顏色越淡表示LED越暗。
+    <br>
+    最底下有一個'Export Table'按鈕，能夠將解析出的結果輸出成Excel檔案格式。
+    <br>
+    製作:Yu-Chiuan
+    <br>
+    <br>
+    <input type="file" id="fileInput" />
+    <br>
+    <label for="stationName">Station Name:</label>
+    <input type="text" id="stationName" value="" size="100" />
+    <br>
+    <label for="stationVersion">Station Version:</label>
+    <input type="text" id="stationVersion" value="" size="100" />
+    <br>
+    <div id="output" style="display: none;"></div>
+     <!-- 隐藏输出框 -->
+    <br>
+    <button id='exportBtn' onClick = "exportToExcel()"> Export Table </button>
+    <!-- <script src="scripts/table2excel/exceljs.min.js"></script> -->
+    <!-- <script src="scripts/table2excel/table2excel.core.js"></script> -->
+    <!-- <script src="scripts/xlsx.full.min.js"></script> -->
+    <script src="scripts/xlsx.bundle.js"></script>
+    <script>
+        // var fileName = "";
+        // 获取文件名并去除扩展名
+        var fileNameWithExtension = "";
+        var fileNameWithoutExtension = "";
+
+        document.getElementById('fileInput').addEventListener('change', function(event) {
+            var file = event.target.files[0];
+            var reader = new FileReader();
+
+            reader.onload = function(event) {
+                var contents = event.target.result;
+                displayStationName(contents);
+                displayStationVersion(contents);
+                displayContents(contents);
+
+                displayRGB(contents);
+            };
+
+            reader.readAsText(file);
+            // fileName = file.name;
+            fileNameWithExtension = file.name;
+            fileNameWithoutExtension = fileNameWithExtension.split('.').slice(0, -1).join('.');
+        });
+
+        // function exportToExcel(){
+        //     const table = document.getElementById('rgbTable')
+        //     const wb = XLSX.utils.table_to_book(table);
+        //     console.log("File Name:",fileNameWithoutExtension);
+        //     XLSX.writeFile(wb,  fileNameWithoutExtension + '.xlsx');
+        // }
+        
+        // function exportToExcel() {
+        //     const table = document.getElementById('rgbTable');
+
+        //     // 创建一个工作簿
+        //     const wb = XLSX.utils.book_new();
+            
+        //     // 将表格转换为工作表
+        //     const ws = XLSX.utils.table_to_sheet(table);
+            
+        //     // 添加样式信息到工作表
+        //     ws['!rows'] = [];
+        //     for (let i = 0; i < table.rows.length; i++) {
+        //         ws['!rows'][i] = { hidden: false, hpx: 25 };
+        //     }
+        //     for (let R = 0; R < table.rows.length; ++R) {
+        //         for (let C = 0; C < table.rows[R].cells.length; ++C) {
+        //             const cellRef = XLSX.utils.encode_cell({ r: R, c: C });
+        //             const cell = ws[cellRef];
+        //             if (cell && table.rows[R].cells[C].style.backgroundColor) {
+        //                 cell.s = {
+        //                     fill: {
+        //                         fgColor: { rgb: table.rows[R].cells[C].style.backgroundColor },
+        //                     },
+        //                 };
+        //             }
+        //         }
+        //     }
+
+        //     // 将工作表添加到工作簿
+        //     XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
+            
+        //     // 保存工作簿到文件
+        //     // XLSX.writeFile(wb, 'file.xlsx');
+        //     XLSX.writeFile(wb,  fileNameWithoutExtension + '.xlsx');
+        // }
+
+        function exportToExcel() {
+            const table = document.getElementById('rgbTable');
+
+            // 创建一个工作簿
+            const wb = XLSX.utils.book_new();
+            
+            // 将表格转换为工作表
+            const ws = XLSX.utils.table_to_sheet(table);
+            
+            // 添加样式信息到工作表
+            ws['!rows'] = [];
+            for (let i = 0; i < table.rows.length; i++) {
+                ws['!rows'][i] = { hidden: false, hpx: 25 };
+            }
+            for (let R = 0; R < table.rows.length; ++R) {
+                for (let C = 0; C < table.rows[R].cells.length; ++C) {
+                    const cellRef = XLSX.utils.encode_cell({ r: R, c: C });
+                    const cell = ws[cellRef];
+                    if (cell && table.rows[R].cells[C].style.backgroundColor) {
+                        const rgbaColor = table.rows[R].cells[C].style.backgroundColor;
+                        const bgColor = "rgb(255, 255, 255)"; // 作为示例提供背景颜色
+                        const rgbColor = rgbaToRgb(rgbaColor, bgColor);
+                        const hexColor = rgbToHex(rgbColor);                   
+                        cell.s = { fill: { fgColor: { rgb: hexColor } } };
+                    }
+                }
+            }
+
+            // 将工作表添加到工作簿
+            XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
+            
+            // 保存工作簿到文件
+            // XLSX.writeFile(wb, 'file.xlsx');
+            XLSX.writeFile(wb,  fileNameWithoutExtension + '.xlsx');
+        }
+
+        // RGBA to RGB 转换函数
+        function rgbaToRgb(rgbaColor, bgColor) {
+            // 解析 RGBA 值
+            const match = rgbaColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+),\s*(\d*(?:\.\d+)?)\)/);
+            if (!match) {
+                return rgbaColor; // 无效的颜色值，可能是讀取到了RGB Color，不處理直接丟回去。
+            }
+
+            const alpha = parseFloat(match[4]); // 获取透明度
+            const red = parseInt(match[1]);
+            const green = parseInt(match[2]);
+            const blue = parseInt(match[3]);
+
+            // 解析背景颜色的 RGB 值
+            const bgMatch = bgColor.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+            if (!bgMatch) {
+                return null; // 无效的背景颜色值
+            }
+
+            const bgRed = parseInt(bgMatch[1]);
+            const bgGreen = parseInt(bgMatch[2]);
+            const bgBlue = parseInt(bgMatch[3]);
+
+            // 使用公式计算 RGB 值
+            const targetRed = Math.round((1 - alpha) * bgRed + alpha * red);
+            const targetGreen = Math.round((1 - alpha) * bgGreen + alpha * green);
+            const targetBlue = Math.round((1 - alpha) * bgBlue + alpha * blue);
+
+            // 返回转换后的 RGB 值
+            return `rgb(${targetRed},${targetGreen},${targetBlue})`;
+        }
+
+        function rgbToHex(rgb) {
+            // 将形如 'rgb(255, 255, 255)' 的字符串转换为十六进制格式表示
+            const match = rgb.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/);
+            if (!match) {
+                throw new Error('Invalid RGB color format');
+            }
+            
+            const [, r, g, b] = match;
+            const toHex = (c) => {
+                const hex = parseInt(c).toString(16);
+                return hex.length === 1 ? '0' + hex : hex;
+            };
+
+            return  toHex(r) + toHex(g) + toHex(b);
+            // return '#' + toHex(r) + toHex(g) + toHex(b);
+        }
+
+        // function rgbaToHex(rgbaColor, bgColor) {
+        //     // 解析 RGBA 值
+        //     const rgbaMatch = rgbaColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+),\s*(\d*(?:\.\d+)?)\)/);
+        //     if (!rgbaMatch) {
+        //         throw new Error('Invalid RGBA color format');
+        //     }
+
+        //     const alpha = parseFloat(rgbaMatch[4]); // 获取透明度
+        //     const red = parseInt(rgbaMatch[1]);
+        //     const green = parseInt(rgbaMatch[2]);
+        //     const blue = parseInt(rgbaMatch[3]);
+
+        //     // 解析背景颜色的 RGB 值
+        //     const bgMatch = bgColor.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+        //     if (!bgMatch) {
+        //         throw new Error('Invalid background color format');
+        //     }
+
+        //     const bgRed = parseInt(bgMatch[1]);
+        //     const bgGreen = parseInt(bgMatch[2]);
+        //     const bgBlue = parseInt(bgMatch[3]);
+
+        //     // 使用公式计算 RGB 值
+        //     const targetRed = Math.round((1 - alpha) * bgRed + alpha * red);
+        //     const targetGreen = Math.round((1 - alpha) * bgGreen + alpha * green);
+        //     const targetBlue = Math.round((1 - alpha) * bgBlue + alpha * blue);
+
+        //     // 将 RGB 值转换为十六进制
+        //     const toHex = (c) => {
+        //         const hex = parseInt(c).toString(16);
+        //         return hex.length === 1 ? '0' + hex : hex;
+        //     };
+
+        //     return toHex(targetRed) + toHex(targetGreen) + toHex(targetBlue);
+        // }
+
+        function displayStationName(contents) {
+            var lines = contents.split('\n');
+            var header = lines[0];
+            var cells = header.split(',');
+            var firstCell = cells[0];
+            var parts = firstCell.split(':');
+            if (parts.length === 2) {
+                var stationName = parts[1].trim();
+                document.getElementById('stationName').value = stationName;
+            } else {
+                console.error('Header format error: Station Name not found.');
+            }
+        }
+
+        function displayStationVersion(contents) {
+            var lines = contents.split('\n');
+            var header = lines[0];
+            var cells = header.split(',');
+            var SecCell = cells[1];
+            var parts = SecCell.split(':');
+            if (parts.length === 2) { 
+                var stationVersion = parts[1].trim();
+                document.getElementById('stationVersion').value = stationVersion;
+            } else {
+                console.error('Header format error: Station Version not found.');
+            }
+        }
+        
+        function displayContents(contents) {
+            var lines = contents.split('\n');
+            var output = document.getElementById('output');
+            output.style.display = 'block';
+            output.innerHTML = '';
+
+            var table = document.createElement('table');
+            table.setAttribute('id', 'dataTable');
+            for (var i = 1; i < lines.length; i++) {
+                var cells = lines[i].split(',');
+                var row = table.insertRow();
+                for (var j = 0; j < cells.length; j++) {
+                    var cell = row.insertCell();
+                    cell.textContent = cells[j];
+                }
+            }
+            output.appendChild(table);
+        }
+        function luxMap(lux, in_min, in_max, out_min, out_max){
+            return (lux - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+        }
+
+        function displayRGB(contents) {
+            // 获取dataTable表格元素
+            var originalTable = document.getElementById('dataTable');
+            if (!originalTable) {
+                console.error('Table element not found.');
+                return;
+            }
+
+            // 创建rgbTable表格元素
+            var rgbTable = document.createElement('table');
+            rgbTable.setAttribute('id', 'rgbTable');
+
+            // 定义需要提取的列名
+            var headers = ['SerialNumber', 'FixtureID', 'Test Pass/Fail Status', 'StartTime', 'EndTime', 'CHECK_LED_R_ON', 'CHECK_LED_G_ON', 'CHECK_LED_B_ON', 'CHECK_ALL_LED_OFF'];
+
+            // 创建rgbTable表头
+            var headerRow = rgbTable.insertRow();
+            
+            /* 創建rgbTable表頭行 */{
+                var headerSerialNumber = headerRow.insertCell();
+                headerSerialNumber.textContent = 'SerialNumber';
+                headerSerialNumber.setAttribute('id', 'SerialNumber');
+
+                var headerFixtureID = headerRow.insertCell();
+                headerFixtureID.textContent = 'FixtureID';
+                headerFixtureID.setAttribute('id', 'FixtureID');
+
+                var headerTestStatus = headerRow.insertCell();
+                headerTestStatus.textContent = 'Test Pass/Fail Status';
+                headerTestStatus.setAttribute('id', 'TestStatus');
+
+                var headerStartTime = headerRow.insertCell();
+                headerStartTime.textContent = 'StartTime';
+                headerStartTime.setAttribute('id', 'StartTime');
+
+                var headerEndTime = headerRow.insertCell();
+                headerEndTime.textContent = 'EndTime';
+                headerEndTime.setAttribute('id', 'EndTime');
+
+                var headerLeft_Red_R = headerRow.insertCell();
+                headerLeft_Red_R.textContent = 'Left_Red_R';
+                headerLeft_Red_R.setAttribute('id', 'headerLeft_Red_R');
+
+                var headerLeft_Red_G = headerRow.insertCell();
+                headerLeft_Red_G.textContent = 'Left_Red_G';
+                headerLeft_Red_G.setAttribute('id', 'headerLeft_Red_G');
+
+                var headerLeft_Red_B = headerRow.insertCell();
+                headerLeft_Red_B.textContent = 'Left_Red_B';
+                headerLeft_Red_B.setAttribute('id', 'headerLeft_Red_B');
+
+                var headerLeft_Red_LUX = headerRow.insertCell();
+                headerLeft_Red_LUX.textContent = 'Left_Red_LUX';
+                headerLeft_Red_LUX.setAttribute('id', 'headerLeft_Red_LUX');
+
+                var headerRight_Red_R = headerRow.insertCell();
+                headerRight_Red_R.textContent = 'Right_Red_R';
+                headerRight_Red_R.setAttribute('id', 'headerRight_Red_R');
+
+                var headerRight_Red_G = headerRow.insertCell();
+                headerRight_Red_G.textContent = 'Right_Red_G';
+                headerRight_Red_G.setAttribute('id', 'headerRight_Red_G');
+
+                var headerRight_Red_B = headerRow.insertCell();
+                headerRight_Red_B.textContent = 'Right_Red_B';
+                headerRight_Red_B.setAttribute('id', 'headerRight_Red_B');
+
+                var headerRight_Red_LUX = headerRow.insertCell();
+                headerRight_Red_LUX.textContent = 'Right_Red_LUX';
+                headerRight_Red_LUX.setAttribute('id', 'headerRight_Red_LUX');
+
+                var headerLeft_Green_R = headerRow.insertCell();
+                headerLeft_Green_R.textContent = 'Left_Green_R';
+                headerLeft_Green_R.setAttribute('id', 'headerLeft_Green_R');
+
+                var headerLeft_Green_G = headerRow.insertCell();
+                headerLeft_Green_G.textContent = 'Left_Green_G';
+                headerLeft_Green_G.setAttribute('id', 'headerLeft_Green_G');
+
+                var headerLeft_Green_B = headerRow.insertCell();
+                headerLeft_Green_B.textContent = 'Left_Green_B';
+                headerLeft_Green_B.setAttribute('id', 'headerLeft_Green_B');
+
+                var headerLeft_Green_LUX = headerRow.insertCell();
+                headerLeft_Green_LUX.textContent = 'Left_Green_LUX';
+                headerLeft_Green_LUX.setAttribute('id', 'headerLeft_Green_LUX');
+
+                var headerRight_Green_R = headerRow.insertCell();
+                headerRight_Green_R.textContent = 'Right_Green_R';
+                headerRight_Green_R.setAttribute('id', 'headerRight_Green_R');
+
+                var headerRight_Green_G = headerRow.insertCell();
+                headerRight_Green_G.textContent = 'Right_Green_G';
+                headerRight_Green_G.setAttribute('id', 'headerRight_Green_G');
+
+                var headerRight_Green_B = headerRow.insertCell();
+                headerRight_Green_B.textContent = 'Right_Green_B';
+                headerRight_Green_B.setAttribute('id', 'headerRight_Green_B');
+
+                var headerRight_Green_LUX = headerRow.insertCell();
+                headerRight_Green_LUX.textContent = 'Right_Green_LUX';
+                headerRight_Green_LUX.setAttribute('id', 'headerRight_Green_LUX');
+
+                var headerLeft_Blue_R = headerRow.insertCell();
+                headerLeft_Blue_R.textContent = 'Left_Blue_R';
+                headerLeft_Blue_R.setAttribute('id', 'headerLeft_Blue_R');
+
+                var headerLeft_Blue_G = headerRow.insertCell();
+                headerLeft_Blue_G.textContent = 'Left_Blue_G';
+                headerLeft_Blue_G.setAttribute('id', 'headerLeft_Blue_G');
+
+                var headerLeft_Blue_B = headerRow.insertCell();
+                headerLeft_Blue_B.textContent = 'Left_Blue_B';
+                headerLeft_Blue_B.setAttribute('id', 'headerLeft_Blue_B');
+
+                var headerLeft_Blue_LUX = headerRow.insertCell();
+                headerLeft_Blue_LUX.textContent = 'Left_Blue_LUX';
+                headerLeft_Blue_LUX.setAttribute('id', 'headerLeft_Blue_LUX');
+
+                var headerRight_Blue_R = headerRow.insertCell();
+                headerRight_Blue_R.textContent = 'Right_Blue_R';
+                headerRight_Blue_R.setAttribute('id', 'headerRight_Blue_R');
+
+                var headerRight_Blue_G = headerRow.insertCell();
+                headerRight_Blue_G.textContent = 'Right_Blue_G';
+                headerRight_Blue_G.setAttribute('id', 'headerRight_Blue_G');
+
+                var headerRight_Blue_B = headerRow.insertCell();
+                headerRight_Blue_B.textContent = 'Right_Blue_B';
+                headerRight_Blue_B.setAttribute('id', 'headerRight_Blue_B');
+
+                var headerRight_Blue_LUX = headerRow.insertCell();
+                headerRight_Blue_LUX.textContent = 'Right_Blue_LUX';
+                headerRight_Blue_LUX.setAttribute('id', 'headerRight_Blue_LUX');
+
+                var headerCHECK_ALL_LED_OFF = headerRow.insertCell();
+                headerCHECK_ALL_LED_OFF.textContent = 'CHECK_ALL_LED_OFF';
+                headerCHECK_ALL_LED_OFF.setAttribute('id', 'headerCHECK_ALL_LED_OFF');
+            }
+            
+
+            // 获取dataTable的行数
+            var rowCount = originalTable.rows.length;
+            console.log("rowCount:", rowCount);
+
+            // 獲取 測試範圍
+            // var CHECK_LED_R_ON_MAX = originalTable.rows[2].cell[8].textContent;
+            // for (var i = 0; i < originalTable.rows[2].cells.length; i++) {
+            //     var cell = originalTable.rows[2].cells[i];
+            //     console.log("@@@:", "i:"+i+" Content:" + cell.textContent);
+            // }
+
+            // 捕捉 CHECK_LED_R_ON_MAX
+            var i = Array.from(originalTable.rows[0].cells).findIndex(cell => cell.textContent.trim() === "CHECK_LED_R_ON");
+            var CHECK_LED_R_ON_MAX = originalTable.rows[1].cells[i].textContent;
+            console.log("CHECK_LED_R_ON_MAX:",CHECK_LED_R_ON_MAX);
+
+            // 捕捉 CHECK_LED_R_ON_MIN
+            var i = Array.from(originalTable.rows[0].cells).findIndex(cell => cell.textContent.trim() === "CHECK_LED_R_ON");
+            var CHECK_LED_R_ON_MIN = originalTable.rows[2].cells[i].textContent;
+            console.log("CHECK_LED_R_ON_MIN:",CHECK_LED_R_ON_MIN);
+
+            // 捕捉 CHECK_LED_G_ON_MAX
+            var i = Array.from(originalTable.rows[0].cells).findIndex(cell => cell.textContent.trim() === "CHECK_LED_G_ON");
+            var CHECK_LED_G_ON_MAX = originalTable.rows[1].cells[i].textContent;
+            console.log("CHECK_LED_G_ON_MAX:",CHECK_LED_G_ON_MAX);
+
+            // 捕捉 CHECK_LED_G_ON_MIN
+            var i = Array.from(originalTable.rows[0].cells).findIndex(cell => cell.textContent.trim() === "CHECK_LED_G_ON");
+            var CHECK_LED_G_ON_MIN = originalTable.rows[2].cells[i].textContent;
+            console.log("CHECK_LED_G_ON_MIN:",CHECK_LED_G_ON_MIN);
+            
+            // 捕捉 CHECK_LED_B_ON_MAX
+            var i = Array.from(originalTable.rows[0].cells).findIndex(cell => cell.textContent.trim() === "CHECK_LED_B_ON");
+            var CHECK_LED_B_ON_MAX = originalTable.rows[1].cells[i].textContent;
+            console.log("CHECK_LED_B_ON_MAX:",CHECK_LED_B_ON_MAX);
+
+            // 捕捉 CHECK_LED_B_ON_MIN
+            var i = Array.from(originalTable.rows[0].cells).findIndex(cell => cell.textContent.trim() === "CHECK_LED_B_ON");
+            var CHECK_LED_B_ON_MIN = originalTable.rows[2].cells[i].textContent;
+            console.log("CHECK_LED_B_ON_MIN:",CHECK_LED_B_ON_MIN);
+            
+            // 创建rgbTable表头 Upper Limit
+            var upperLimitRow = rgbTable.insertRow();
+            /* 創建rgbTable表頭行 */{
+                var headerSerialNumber = upperLimitRow.insertCell();
+                headerSerialNumber.textContent = 'Upper Limit ----->';
+                headerSerialNumber.setAttribute('id', 'UpperLimit');
+
+                var headerFixtureID = upperLimitRow.insertCell();
+                headerFixtureID.textContent = '';
+                headerFixtureID.setAttribute('id', 'FixtureID');
+
+                var headerTestStatus = upperLimitRow.insertCell();
+                headerTestStatus.textContent = '';
+                headerTestStatus.setAttribute('id', 'TestStatus');
+
+                var headerStartTime = upperLimitRow.insertCell();
+                headerStartTime.textContent = '';
+                headerStartTime.setAttribute('id', 'StartTime');
+
+                var headerEndTime = upperLimitRow.insertCell();
+                headerEndTime.textContent = '';
+                headerEndTime.setAttribute('id', 'EndTime');
+
+                var headerLeft_Red_R = upperLimitRow.insertCell();
+                headerLeft_Red_R.textContent = '';
+                headerLeft_Red_R.setAttribute('id', 'headerLeft_Red_R');
+
+                var headerLeft_Red_G = upperLimitRow.insertCell();
+                headerLeft_Red_G.textContent = '';
+                headerLeft_Red_G.setAttribute('id', 'headerLeft_Red_G');
+
+                var headerLeft_Red_B = upperLimitRow.insertCell();
+                headerLeft_Red_B.textContent = '';
+                headerLeft_Red_B.setAttribute('id', 'headerLeft_Red_B');
+
+                var headerLeft_Red_LUX = upperLimitRow.insertCell();
+                headerLeft_Red_LUX.textContent = CHECK_LED_R_ON_MAX;
+                headerLeft_Red_LUX.setAttribute('id', 'headerLeft_Red_LUX');
+
+                var headerRight_Red_R = upperLimitRow.insertCell();
+                headerRight_Red_R.textContent = '';
+                headerRight_Red_R.setAttribute('id', 'headerRight_Red_R');
+
+                var headerRight_Red_G = upperLimitRow.insertCell();
+                headerRight_Red_G.textContent = '';
+                headerRight_Red_G.setAttribute('id', 'headerRight_Red_G');
+
+                var headerRight_Red_B = upperLimitRow.insertCell();
+                headerRight_Red_B.textContent = '';
+                headerRight_Red_B.setAttribute('id', 'headerRight_Red_B');
+
+                var headerRight_Red_LUX = upperLimitRow.insertCell();
+                headerRight_Red_LUX.textContent = CHECK_LED_R_ON_MAX;
+                headerRight_Red_LUX.setAttribute('id', 'headerRight_Red_LUX');
+
+                var headerLeft_Green_R = upperLimitRow.insertCell();
+                headerLeft_Green_R.textContent = '';
+                headerLeft_Green_R.setAttribute('id', 'headerLeft_Green_R');
+
+                var headerLeft_Green_G = upperLimitRow.insertCell();
+                headerLeft_Green_G.textContent = '';
+                headerLeft_Green_G.setAttribute('id', 'headerLeft_Green_G');
+
+                var headerLeft_Green_B = upperLimitRow.insertCell();
+                headerLeft_Green_B.textContent = '';
+                headerLeft_Green_B.setAttribute('id', 'headerLeft_Green_B');
+
+                var headerLeft_Green_LUX = upperLimitRow.insertCell();
+                headerLeft_Green_LUX.textContent = CHECK_LED_G_ON_MAX;
+                headerLeft_Green_LUX.setAttribute('id', 'headerLeft_Green_LUX');
+
+                var headerRight_Green_R = upperLimitRow.insertCell();
+                headerRight_Green_R.textContent = '';
+                headerRight_Green_R.setAttribute('id', 'headerRight_Green_R');
+
+                var headerRight_Green_G = upperLimitRow.insertCell();
+                headerRight_Green_G.textContent = '';
+                headerRight_Green_G.setAttribute('id', 'headerRight_Green_G');
+
+                var headerRight_Green_B = upperLimitRow.insertCell();
+                headerRight_Green_B.textContent = '';
+                headerRight_Green_B.setAttribute('id', 'headerRight_Green_B');
+
+                var headerRight_Green_LUX = upperLimitRow.insertCell();
+                headerRight_Green_LUX.textContent = CHECK_LED_G_ON_MAX;
+                headerRight_Green_LUX.setAttribute('id', 'headerRight_Green_LUX');
+
+                var headerLeft_Blue_R = upperLimitRow.insertCell();
+                headerLeft_Blue_R.textContent = '';
+                headerLeft_Blue_R.setAttribute('id', 'headerLeft_Blue_R');
+
+                var headerLeft_Blue_G = upperLimitRow.insertCell();
+                headerLeft_Blue_G.textContent = '';
+                headerLeft_Blue_G.setAttribute('id', 'headerLeft_Blue_G');
+
+                var headerLeft_Blue_B = upperLimitRow.insertCell();
+                headerLeft_Blue_B.textContent = '';
+                headerLeft_Blue_B.setAttribute('id', 'headerLeft_Blue_B');
+
+                var headerLeft_Blue_LUX = upperLimitRow.insertCell();
+                headerLeft_Blue_LUX.textContent = CHECK_LED_B_ON_MAX;
+                headerLeft_Blue_LUX.setAttribute('id', 'headerLeft_Blue_LUX');
+
+                var headerRight_Blue_R = upperLimitRow.insertCell();
+                headerRight_Blue_R.textContent = '';
+                headerRight_Blue_R.setAttribute('id', 'headerRight_Blue_R');
+
+                var headerRight_Blue_G = upperLimitRow.insertCell();
+                headerRight_Blue_G.textContent = '';
+                headerRight_Blue_G.setAttribute('id', 'headerRight_Blue_G');
+
+                var headerRight_Blue_B = upperLimitRow.insertCell();
+                headerRight_Blue_B.textContent = '';
+                headerRight_Blue_B.setAttribute('id', 'headerRight_Blue_B');
+
+                var headerRight_Blue_LUX = upperLimitRow.insertCell();
+                headerRight_Blue_LUX.textContent = CHECK_LED_B_ON_MAX;
+                headerRight_Blue_LUX.setAttribute('id', 'headerRight_Blue_LUX');
+
+                var headerCHECK_ALL_LED_OFF = upperLimitRow.insertCell();
+                headerCHECK_ALL_LED_OFF.textContent = '';
+                headerCHECK_ALL_LED_OFF.setAttribute('id', 'headerCHECK_ALL_LED_OFF');
+            }
+
+            // 创建rgbTable表头 Lower Limit
+            var lowerLimitRow = rgbTable.insertRow();
+            /* 創建rgbTable表頭行 */{
+                var headerSerialNumber = lowerLimitRow.insertCell();
+                headerSerialNumber.textContent = 'Lower Limit ----->';
+                headerSerialNumber.setAttribute('id', 'UpperLimit');
+
+                var headerFixtureID = lowerLimitRow.insertCell();
+                headerFixtureID.textContent = '';
+                headerFixtureID.setAttribute('id', 'FixtureID');
+
+                var headerTestStatus = lowerLimitRow.insertCell();
+                headerTestStatus.textContent = '';
+                headerTestStatus.setAttribute('id', 'TestStatus');
+
+                var headerStartTime = lowerLimitRow.insertCell();
+                headerStartTime.textContent = '';
+                headerStartTime.setAttribute('id', 'StartTime');
+
+                var headerEndTime = lowerLimitRow.insertCell();
+                headerEndTime.textContent = '';
+                headerEndTime.setAttribute('id', 'EndTime');
+
+                var headerLeft_Red_R = lowerLimitRow.insertCell();
+                headerLeft_Red_R.textContent = '';
+                headerLeft_Red_R.setAttribute('id', 'headerLeft_Red_R');
+
+                var headerLeft_Red_G = lowerLimitRow.insertCell();
+                headerLeft_Red_G.textContent = '';
+                headerLeft_Red_G.setAttribute('id', 'headerLeft_Red_G');
+
+                var headerLeft_Red_B = lowerLimitRow.insertCell();
+                headerLeft_Red_B.textContent = '';
+                headerLeft_Red_B.setAttribute('id', 'headerLeft_Red_B');
+
+                var headerLeft_Red_LUX = lowerLimitRow.insertCell();
+                headerLeft_Red_LUX.textContent = CHECK_LED_R_ON_MIN;
+                headerLeft_Red_LUX.setAttribute('id', 'headerLeft_Red_LUX');
+
+                var headerRight_Red_R = lowerLimitRow.insertCell();
+                headerRight_Red_R.textContent = '';
+                headerRight_Red_R.setAttribute('id', 'headerRight_Red_R');
+
+                var headerRight_Red_G = lowerLimitRow.insertCell();
+                headerRight_Red_G.textContent = '';
+                headerRight_Red_G.setAttribute('id', 'headerRight_Red_G');
+
+                var headerRight_Red_B = lowerLimitRow.insertCell();
+                headerRight_Red_B.textContent = '';
+                headerRight_Red_B.setAttribute('id', 'headerRight_Red_B');
+
+                var headerRight_Red_LUX = lowerLimitRow.insertCell();
+                headerRight_Red_LUX.textContent = CHECK_LED_R_ON_MIN;
+                headerRight_Red_LUX.setAttribute('id', 'headerRight_Red_LUX');
+
+                var headerLeft_Green_R = lowerLimitRow.insertCell();
+                headerLeft_Green_R.textContent = '';
+                headerLeft_Green_R.setAttribute('id', 'headerLeft_Green_R');
+
+                var headerLeft_Green_G = lowerLimitRow.insertCell();
+                headerLeft_Green_G.textContent = '';
+                headerLeft_Green_G.setAttribute('id', 'headerLeft_Green_G');
+
+                var headerLeft_Green_B = lowerLimitRow.insertCell();
+                headerLeft_Green_B.textContent = '';
+                headerLeft_Green_B.setAttribute('id', 'headerLeft_Green_B');
+
+                var headerLeft_Green_LUX = lowerLimitRow.insertCell();
+                headerLeft_Green_LUX.textContent = CHECK_LED_G_ON_MIN;
+                headerLeft_Green_LUX.setAttribute('id', 'headerLeft_Green_LUX');
+
+                var headerRight_Green_R = lowerLimitRow.insertCell();
+                headerRight_Green_R.textContent = '';
+                headerRight_Green_R.setAttribute('id', 'headerRight_Green_R');
+
+                var headerRight_Green_G = lowerLimitRow.insertCell();
+                headerRight_Green_G.textContent = '';
+                headerRight_Green_G.setAttribute('id', 'headerRight_Green_G');
+
+                var headerRight_Green_B = lowerLimitRow.insertCell();
+                headerRight_Green_B.textContent = '';
+                headerRight_Green_B.setAttribute('id', 'headerRight_Green_B');
+
+                var headerRight_Green_LUX = lowerLimitRow.insertCell();
+                headerRight_Green_LUX.textContent = CHECK_LED_G_ON_MIN;
+                headerRight_Green_LUX.setAttribute('id', 'headerRight_Green_LUX');
+
+                var headerLeft_Blue_R = lowerLimitRow.insertCell();
+                headerLeft_Blue_R.textContent = '';
+                headerLeft_Blue_R.setAttribute('id', 'headerLeft_Blue_R');
+
+                var headerLeft_Blue_G = lowerLimitRow.insertCell();
+                headerLeft_Blue_G.textContent = '';
+                headerLeft_Blue_G.setAttribute('id', 'headerLeft_Blue_G');
+
+                var headerLeft_Blue_B = lowerLimitRow.insertCell();
+                headerLeft_Blue_B.textContent = '';
+                headerLeft_Blue_B.setAttribute('id', 'headerLeft_Blue_B');
+
+                var headerLeft_Blue_LUX = lowerLimitRow.insertCell();
+                headerLeft_Blue_LUX.textContent = CHECK_LED_B_ON_MIN;
+                headerLeft_Blue_LUX.setAttribute('id', 'headerLeft_Blue_LUX');
+
+                var headerRight_Blue_R = lowerLimitRow.insertCell();
+                headerRight_Blue_R.textContent = '';
+                headerRight_Blue_R.setAttribute('id', 'headerRight_Blue_R');
+
+                var headerRight_Blue_G = lowerLimitRow.insertCell();
+                headerRight_Blue_G.textContent = '';
+                headerRight_Blue_G.setAttribute('id', 'headerRight_Blue_G');
+
+                var headerRight_Blue_B = lowerLimitRow.insertCell();
+                headerRight_Blue_B.textContent = '';
+                headerRight_Blue_B.setAttribute('id', 'headerRight_Blue_B');
+
+                var headerRight_Blue_LUX = lowerLimitRow.insertCell();
+                headerRight_Blue_LUX.textContent = CHECK_LED_B_ON_MIN;
+                headerRight_Blue_LUX.setAttribute('id', 'headerRight_Blue_LUX');
+
+                var headerCHECK_ALL_LED_OFF = lowerLimitRow.insertCell();
+                headerCHECK_ALL_LED_OFF.textContent = '';
+                headerCHECK_ALL_LED_OFF.setAttribute('id', 'headerCHECK_ALL_LED_OFF');
+            }
+
+            // 遍历每一行
+            for (var rowIndex = 4; rowIndex < rowCount; rowIndex++) {
+                var originalRow = originalTable.rows[rowIndex]; // 取得每一行
+                var newRow = rgbTable.insertRow(); // 建立新的一行
+                
+                // 遍历需要提取的列
+                for (var headerName of headers) {
+                    // 查找对应列的索引
+                    var orgcolumnIndex = Array.from(originalTable.rows[0].cells).findIndex(cell => cell.textContent.trim() === headerName);
+                    var originalCell = originalRow.cells[orgcolumnIndex];
+                    // console.log("orgcolumnIndex:" , orgcolumnIndex);
+                    // console.log("headerName:" , headerName);
+                    // console.log("originalCell:", originalCell ? originalCell.textContent.trim() : '');
+                    switch (headerName) {
+                        case 'SerialNumber':{
+                            // var newcolumnIndex = Array.from(rgbTable.rows[0].cells).findIndex(cell => cell.textContent.trim() === "SerialNumber");
+                            tempContent = originalCell ? originalCell.textContent.trim() : '';
+                            var newCell = newRow.insertCell();
+                            newCell.textContent = tempContent;
+                            break;
+                        }
+                        case 'FixtureID':{
+                            tempContent = originalCell ? originalCell.textContent.trim() : '';
+                            var newCell = newRow.insertCell();
+                            newCell.textContent = tempContent;
+                            break;
+                        }
+                        case 'Test Pass/Fail Status':{
+                            tempContent = originalCell ? originalCell.textContent.trim() : '';
+                            var newCell = newRow.insertCell();
+                            newCell.textContent = tempContent;
+                            break;
+                        }
+                        case 'StartTime':{
+                            tempContent = originalCell ? originalCell.textContent.trim() : '';
+                            var newCell = newRow.insertCell();
+                            newCell.textContent = tempContent;
+                            break;
+                        }
+                        case 'EndTime':{
+                            tempContent = originalCell ? originalCell.textContent.trim() : '';
+                            var newCell = newRow.insertCell();
+                            newCell.textContent = tempContent;
+                            break;
+                        }
+                        case 'CHECK_LED_B_ON':{}
+                        case 'CHECK_LED_G_ON':{}
+                        case 'CHECK_LED_R_ON':{
+                            tempContent = originalCell ? originalCell.textContent.trim() : '';
+                            // console.log("@@@", tempContent);
+                            // console.log("@@@ = ", tempContent.indexOf("Fail") )
+                            // console.log("@@@ = ", tempContent.indexOf("|") )
+                            if (tempContent.indexOf("|") > 0 ) {
+                                var tmpSplit = tempContent.split(" | ");
+                                var leftData = tmpSplit[0].split(" ");
+                                var rightData = tmpSplit[1].split(" ");
+                                // console.log("@@@", leftData);
+                                // console.log("@@@", rightData);
+
+                                var newCell_L_R = newRow.insertCell();
+                                newCell_L_R.textContent = leftData[1] ? leftData[1].trim() : ''; // 处理空单元格
+                                newCell_L_R.setAttribute('class', 'Cell_LR');
+                                var color_r = leftData[1] ? leftData[1].trim() : '0';
+                                
+                                var newCell_L_G = newRow.insertCell();
+                                newCell_L_G.textContent = leftData[2] ? leftData[2].trim() : ''; // 处理空单元格
+                                newCell_L_G.setAttribute('class', 'Cell_LG');
+                                var color_g = leftData[2] ? leftData[2].trim() : '0';
+
+                                var newCell_L_B = newRow.insertCell();
+                                newCell_L_B.textContent = leftData[3] ? leftData[3].trim() : ''; // 处理空单元格
+                                newCell_L_B.setAttribute('class', 'Cell_LB');
+                                var color_b = leftData[3] ? leftData[3].trim() : '0';
+                                
+                                var newCell_L_LUX = newRow.insertCell();
+                                newCell_L_LUX.textContent = leftData[4] ? leftData[4].trim() : ''; // 处理空单元格
+                                var color_lux = leftData[4] ? leftData[4].trim() : '0';
+                                var bolResult = "normal";
+                                if(headerName === "CHECK_LED_R_ON") {
+                                    var color_a = luxMap(color_lux, CHECK_LED_R_ON_MIN, CHECK_LED_R_ON_MAX, 0, 100) / 100;
+                                    if(Number(color_lux) >  Number(CHECK_LED_R_ON_MAX)) {
+                                        bolResult = "tooHigh";
+                                    }else if(Number(color_lux) < Number(CHECK_LED_R_ON_MIN)){
+                                        bolResult = "tooLow";
+                                    }
+                                } else if(headerName === "CHECK_LED_G_ON") {
+                                    var color_a = luxMap(color_lux, CHECK_LED_G_ON_MIN, CHECK_LED_G_ON_MAX, 0, 100) / 100;
+                                    if(Number(color_lux) >  Number(CHECK_LED_G_ON_MAX)) {
+                                        bolResult = "tooHigh";
+                                    }else if(Number(color_lux) < Number(CHECK_LED_G_ON_MIN)) {
+                                        bolResult = "tooLow";
+                                    }
+                                } else if(headerName === "CHECK_LED_B_ON") {
+                                    var color_a = luxMap(color_lux, CHECK_LED_B_ON_MIN, CHECK_LED_B_ON_MAX, 0, 100) / 100;
+                                    if(Number(color_lux) >  Number(CHECK_LED_B_ON_MAX)) {
+                                        bolResult = "tooHigh";
+                                    }else if(Number(color_lux) < Number(CHECK_LED_B_ON_MIN)) {
+                                        bolResult = "tooLow";
+                                    }
+                                } else {
+                                    console.log("@@@ What happened???");
+                                }
+                                // console.log("@@@ color_a", color_a);
+                                newCell_L_LUX.style.backgroundColor = "rgba("+color_r+","+color_g+","+color_b+","+color_a+")";
+                                newCell_L_LUX.className = bolResult;
+                                
+                                //border-collapse
+                                /* ============================================================================== */
+                                var newCell_R_R = newRow.insertCell();
+                                newCell_R_R.textContent = rightData[1] ? rightData[1].trim() : ''; // 处理空单元格
+                                newCell_R_R.setAttribute('class', 'Cell_R_R');
+                                color_r = rightData[1] ? rightData[1].trim() : '0';
+
+                                var newCell_R_G = newRow.insertCell();
+                                newCell_R_G.textContent = rightData[2] ? rightData[2].trim() : ''; // 处理空单元格
+                                newCell_R_G.setAttribute('class', 'Cell_R_G');
+                                color_g = rightData[2] ? rightData[2].trim() : '0';
+
+                                var newCell_R_B = newRow.insertCell();
+                                newCell_R_B.textContent = rightData[3] ? rightData[3].trim() : ''; // 处理空单元格
+                                newCell_R_B.setAttribute('class', 'Cell_R_B');
+                                color_b = rightData[3] ? rightData[3].trim() : '0';
+
+                                var newCell_R_LUX = newRow.insertCell();
+                                newCell_R_LUX.textContent = rightData[4] ? rightData[4].trim() : ''; // 处理空单元格
+                                color_lux = rightData[4] ? rightData[4].trim() : '0';
+
+                                if(headerName === "CHECK_LED_R_ON") {
+                                    var color_a = luxMap(color_lux, CHECK_LED_R_ON_MIN, CHECK_LED_R_ON_MAX, 0, 100) / 100;
+                                    if(Number(color_lux) >  Number(CHECK_LED_R_ON_MAX)) {
+                                        bolResult = "tooHigh";
+                                    }else if(Number(color_lux) < Number(CHECK_LED_R_ON_MIN)) {
+                                        bolResult = "tooLow";
+                                    }
+                                } else if(headerName === "CHECK_LED_G_ON") {
+                                    var color_a = luxMap(color_lux, CHECK_LED_G_ON_MIN, CHECK_LED_G_ON_MAX, 0, 100) / 100;
+                                    if(Number(color_lux) >  Number(CHECK_LED_R_ON_MAX)) {
+                                        bolResult = "tooHigh";
+                                    }else if(Number(color_lux) < Number(CHECK_LED_R_ON_MIN)) {
+                                        bolResult = "tooLow";
+                                    }
+                                } else if(headerName === "CHECK_LED_B_ON") {
+                                    var color_a = luxMap(color_lux, CHECK_LED_B_ON_MIN, CHECK_LED_B_ON_MAX, 0, 100) / 100;
+                                    if(Number(color_lux) >  Number(CHECK_LED_B_ON_MAX)) {
+                                        bolResult = "tooHigh";
+                                    }else if(Number(color_lux) < Number(CHECK_LED_B_ON_MIN)) {
+                                        bolResult = "tooLow";
+                                    }
+                                } else {
+                                    console.log("@@@ What happened???");
+                                }
+                                // console.log("@@@ color_a", color_a);
+                                newCell_R_LUX.style.backgroundColor = "rgba("+color_r+","+color_g+","+color_b+","+color_a+")";
+                                newCell_R_LUX.className = bolResult;
+                                
+                            } else {
+                                // console.log("CCC, ", "Print out it");
+                                var newCell0 = newRow.insertCell();
+                                newCell0.textContent = originalCell ? originalCell.textContent.trim() : ''; // 处理空单元格
+                                var newCell1 = newRow.insertCell();
+                                newCell1.textContent = originalCell ? originalCell.textContent.trim() : ''; // 处理空单元格
+                                var newCell2 = newRow.insertCell();
+                                newCell2.textContent = originalCell ? originalCell.textContent.trim() : ''; // 处理空单元格
+                                var newCell3 = newRow.insertCell();
+                                newCell3.textContent = originalCell ? originalCell.textContent.trim() : ''; // 处理空单元格
+                                var newCell4 = newRow.insertCell();
+                                newCell4.textContent = originalCell ? originalCell.textContent.trim() : ''; // 处理空单元格
+                                var newCell5 = newRow.insertCell();
+                                newCell5.textContent = originalCell ? originalCell.textContent.trim() : ''; // 处理空单元格
+                                var newCell6 = newRow.insertCell();
+                                newCell6.textContent = originalCell ? originalCell.textContent.trim() : ''; // 处理空单元格
+                                var newCell7 = newRow.insertCell();
+                                newCell7.textContent = originalCell ? originalCell.textContent.trim() : ''; // 处理空单元格
+                            }
+                            break;
+                        }
+                        case 'CHECK_ALL_LED_OFF':{
+                            tempContent = originalCell ? originalCell.textContent.trim() : '';
+                            var newCell = newRow.insertCell();
+                            newCell.textContent = tempContent;
+                            break;
+                        }
+                    }                    
+                }
+            }
+
+            // 将rgbTable添加到页面中
+            var output = document.getElementById('output');
+            output.appendChild(document.createElement('br'));
+            output.appendChild(rgbTable);
+        }
+        
+        function dataAnalyze(dataString, newCell){
+            
+        }
+
+        function displayRGB2(contents) {
+            // 获取dataTable表格元素
+            var originalTable = document.getElementById('dataTable');
+            if (!originalTable) {
+                console.error('Table element not found.');
+                return;
+            }
+
+            // 创建rgbTable表格元素
+            var rgbTable = document.createElement('table');
+            rgbTable.setAttribute('id', 'rgbTable');
+
+            // 定义需要提取的列名
+            var headers = ['SerialNumber', 'FixtureID', 'Test Pass/Fail Status', 'StartTime', 'EndTime', 'CHECK_LED_R_ON', 'CHECK_LED_G_ON', 'CHECK_LED_B_ON', 'CHECK_ALL_LED_OFF'];
+
+            // 创建rgbTable表头
+            var headerRow = rgbTable.insertRow();
+            for (var i = 0; i < headers.length; i++) {
+                var headerCell = headerRow.insertCell();
+                headerCell.textContent = headers[i];
+                headerCell.setAttribute('id', headers[i]);
+            }
+
+            // 获取dataTable的行数
+            var rowCount = originalTable.rows.length;
+
+            // 遍历每一行
+            for (var rowIndex = 1; rowIndex < rowCount; rowIndex++) {
+                var originalRow = originalTable.rows[rowIndex];
+                var newRow = rgbTable.insertRow();
+
+                // 遍历需要提取的列
+                for (var headerName of headers) {
+                    // 查找对应列的索引
+                    var columnIndex = Array.from(originalTable.rows[0].cells).findIndex(cell => cell.textContent.trim() === headerName);
+                    var originalCell = originalRow.cells[columnIndex];
+                    var newCell = newRow.insertCell();
+                    newCell.textContent = originalCell ? originalCell.textContent.trim() : ''; // 处理空单元格
+                }
+            }
+
+            // 将rgbTable添加到页面中
+            var output = document.getElementById('output');
+            output.appendChild(document.createElement('br'));
+            output.appendChild(rgbTable);
+        }
+
+
+
+    </script>
+</body>
+</html>
